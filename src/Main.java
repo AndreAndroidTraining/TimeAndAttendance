@@ -25,10 +25,10 @@ public class Main {
     {
 
         try {
+
             System.out.println(filePath);
             DataFrame dataFrame = CSVReader.readCSV(filePath);
             DataFrame employee = dataFrame.filter(4, true, name);
-            System.out.println(employee.values());
             return employee.values();
 
         } catch (IOException e) {

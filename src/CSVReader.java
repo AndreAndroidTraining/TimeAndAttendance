@@ -18,7 +18,7 @@ public class CSVReader {
         BufferedReader br = new BufferedReader(fr);
 
 
-        BufferedReader reader = new BufferedReader(new InputStreamReader(Objects.requireNonNull(Objects.requireNonNull(CSVReader.class.getClassLoader()).getResourceAsStream(filename))));
+        BufferedReader reader = new BufferedReader(fr);
         String line = null;
         StringBuilder builder = new StringBuilder();
         while((line = reader.readLine()) != null) {
