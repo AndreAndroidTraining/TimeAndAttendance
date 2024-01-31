@@ -1,80 +1,155 @@
-import java.io.File;
-import java.io.IOException;
-import java.util.*;
+import org.apache.poi.hssf.usermodel.HSSFWorkbook;
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
+
+import java.io.*;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+import java.util.stream.Collectors;
 
 public class Main {
-    public static void main(String[] args) {
+    public static final String FILE_URL = "C:\\Users\\ekste\\Downloads\\clocking.csv";
+    public static final String OUTPUT_URL = "C:\\Users\\ekste\\Downloads\\clocking12.xlsx";
 
-        //System.out.println("Hello world!");
-        CombineClockTimes clockTimes = new CombineClockTimes();
+    public static void main(String[] args) throws IOException {
+        Workbook workbook = createWorkBook();
 
-        String fileURL2 = "C:\\Users\\Public\\Documents\\clocking.csv";
-        String fileURL = "C:\\Users\\ekste\\Downloads\\clocking.csv";
-        String filePath = "clocking.csv";
-        String outputFilePath = "C:\\Users\\ekste\\Downloads\\Converted.csv";
+        // TODO: #1 create logic to iterate through the data and to create sheets for each month with headings
 
-        List<Record> stanley = getEmployeeByName("Stanley", fileURL);
-        List<String[]> inTimeByDate = getInTimeByDate(stanley).stream().distinct().toList();
+        Sheet sheet = createSheet(workbook, "August");
+        createHeadings(sheet);
 
-        for (String[] str : inTimeByDate) {
-            System.out.println(Arrays.toString(str));
-        }
-    }
+        // TODO: #2 create logic to add data to month sheet in cols
 
-    public static List<Record> getEmployeeByName (String name, String filePath)
-    {
+        FileOutputStream outputStream = new FileOutputStream(OUTPUT_URL);
 
-        try {
+        List<DataRow> dataRows = mapCsvToDataRow();
+        List<DataRow> combinedDatesTimesList = combineDatesTimes(dataRows).stream().distinct().collect(Collectors.toList());
+        List<DataRow> removeDuplicates = removeDuplicates(combinedDatesTimesList);
 
-            System.out.println(filePath);
-            DataFrame dataFrame = CSVReader.readCSV(filePath);
-            DataFrame employee = dataFrame.filter(4, true, name);
-            return employee.values();
+        // TODO: use below list
+        List<DataRow> collect = removeDuplicates.stream().filter(e -> e.getDate().getMonthValue() == 8).collect(Collectors.toList());
 
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-    }
+        int rowCounter = 1;
+        for (DataRow r : removeDuplicates) {
+            if(r.getDate().getMonthValue()==8){
+                Row row = sheet.createRow(rowCounter);
+                Cell date = row.createCell(0);
+                date.setCellValue(r.getDate().toString());
+                Cell surname = row.createCell(1);
+                surname.setCellValue(r.getSurname());
+                Cell name = row.createCell(2);
+                name.setCellValue(r.getName());
+                Cell timeIn = row.createCell(3);
+                timeIn.setCellValue(r.getInTime().toString());
+                Cell timeOut = row.createCell(4);
+                timeOut.setCellValue(r.getOutTime().toString());
 
-
-    public static List<Record> getEmployeeBySurname (String surname, String filePath)
-    {
-
-        try {
-            System.out.println(filePath);
-            DataFrame dataFrame = CSVReader.readCSV(filePath);
-            DataFrame employee = dataFrame.filter(5, true, surname);
-
-            return employee.values();
-
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    public static List<String[]> getInTimeByDate(List<Record> records){
-
-        System.out.println(records);
-        String previousDate = String.valueOf(records.get(0).getField(1).asString());
-        String previousTime = String.valueOf(records.get(0).getField(2).asString());
-        String outTime = "";
-        List<String[]> newList = new ArrayList<>();
-        //System.out.println(previousDate);
-
-        for (Record r: records) {
-            if (!r.getField(1).asString().equals(previousDate)){
-                previousDate=r.getField(1).asString();
-                previousTime=r.getField(2).asString();
-            }else if(r.getField(1).asString().equals(previousDate)&&!r.getField(2).asString().equals(previousTime)){
-                outTime = r.getField(2).asString();
-                //System.out.println(previousDate+" " + previousTime+ " " + outTime);
-                String time = "Time In: "+previousTime+" Time Out: "+ outTime;
-                String[] array = {r.getField(4).asString(), r.getField(5).asString(), previousDate, time};
-                newList.add(array);
+                rowCounter++;
             }
-
         }
-        //System.out.println(previousDate+" " + previousTime+ " " + outTime);
-        return newList;
+        workbook.write(outputStream);
+
+
+        workbook.close();
+        System.out.println(removeDuplicates.size());
+    }
+
+    private static List<DataRow> removeDuplicates(List<DataRow> combinedDatesTimesList) throws IOException {
+        List<DataRow> result = new ArrayList<>();
+
+        for (int i = 0; i < combinedDatesTimesList.size() - 1; i++) {
+            DataRow thisRow = combinedDatesTimesList.get(i);
+            DataRow nextRow = combinedDatesTimesList.get(i + 1);
+
+            if (!thisRow.getDate().isEqual(nextRow.getDate()))
+                result.add(thisRow);
+        }
+
+        result.sort(Comparator.comparing(DataRow::getDate));
+
+
+
+        return result;
+    }
+
+    private static List<DataRow> combineDatesTimes(List<DataRow> dataRows) {
+        List<DataRow> result = new ArrayList<>();
+
+        for (int i = 0; i < dataRows.size() - 1; i++) {
+            for (int j = 0; j < dataRows.size() - 1; j++) {
+                if (dataRows.get(i).getDate().isEqual(dataRows.get(j).getDate())
+                        && dataRows.get(i).getSurname().equals(dataRows.get(j).getSurname())
+                        && dataRows.get(i).getName().equals(dataRows.get(j).getName())) {
+                    if (dataRows.get(j).getInTime().isBefore(dataRows.get(i).getInTime())) {
+                        dataRows.get(i).setInTime(dataRows.get(j).getInTime());
+                    }
+                    if (dataRows.get(j).getOutTime().isAfter(dataRows.get(i).getOutTime())) {
+                        dataRows.get(i).setOutTime(dataRows.get(j).getOutTime());
+                    }
+
+                    result.add(dataRows.get(i));
+                }
+            }
+        }
+
+        return result;
+    }
+
+    private static List<DataRow> mapCsvToDataRow() throws IOException {
+        List<DataRow> dataRows = new ArrayList<>();
+
+        BufferedReader reader = new BufferedReader(new FileReader(FILE_URL));
+        String line = reader.readLine();
+
+        while ((line = reader.readLine()) != null && !line.isEmpty()) {
+            String[] fields = line.split(",");
+
+            DataRow row = new DataRow();
+            row.setDate(convertToLocalDate(fields[1]));
+            row.setName(fields[4]);
+            row.setSurname(fields[5]);
+            row.setInTime(convertToLocalTime(fields[2]));
+            row.setOutTime(convertToLocalTime(fields[2]));
+            dataRows.add(row);
+        }
+
+        dataRows.sort(Comparator.comparing(DataRow::getName));
+        return dataRows;
+    }
+
+    private static LocalDate convertToLocalDate (String date) {
+        return LocalDate.of(Integer.parseInt(date.substring(6, 10)), Integer.parseInt(date.substring(3, 5)), Integer.parseInt(date.substring(0, 2)));
+    }
+
+    private static LocalTime convertToLocalTime (String time) {
+        return LocalTime.of(Integer.parseInt(time.substring(0, 2)), Integer.parseInt(time.substring(3, 5)));
+    }
+
+    private static Workbook createWorkBook () throws IOException {
+        return new HSSFWorkbook();
+    }
+
+    private static Sheet createSheet(Workbook workbook, String name) {
+        return workbook.createSheet(name);
+    }
+
+    private static void createHeadings(Sheet sheet) {
+        Row row = sheet.createRow(0);
+        Cell cellDate = row.createCell(0);
+        cellDate.setCellValue("Date");
+        Cell cellSurname = row.createCell(1);
+        cellSurname.setCellValue("Surname");
+        Cell cellName = row.createCell(2);
+        cellName.setCellValue("Name");
+        Cell cellTimeIn = row.createCell(3);
+        cellTimeIn.setCellValue("Time In");
+        Cell cellTimeOut = row.createCell(4);
+        cellTimeOut.setCellValue("Time Out");
     }
 }

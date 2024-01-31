@@ -1,0 +1,12 @@
+<component name="libraryTable">
+  <library name="commons-io-2.15.1">
+    <CLASSES>
+      <root url="jar://$USER_HOME$/Downloads/commons-io-2.15.1.jar!/" />
+      <root url="jar://$USER_HOME$/Downloads/log4j-api-2.22.1.jar!/" />
+      <root url="jar://$USER_HOME$/Downloads/log4j-core-2.22.1.jar!/" />
+      <root url="jar://$USER_HOME$/Downloads/poi-5.2.5.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>
